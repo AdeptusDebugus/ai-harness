@@ -1,0 +1,7 @@
+.idea/
+.junie/
+target/
+ollama/
+*.iml
+*.iws
+out/
