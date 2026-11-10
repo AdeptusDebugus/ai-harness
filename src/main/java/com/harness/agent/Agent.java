@@ -1,6 +1,8 @@
 package com.harness.agent;
 
 import com.harness.agent.event.AgentEvent;
+import com.harness.tool.SpringAiToolAdapter;
+import com.harness.tool.ToolRegistry;
 import com.harness.tool.ToolResult;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;

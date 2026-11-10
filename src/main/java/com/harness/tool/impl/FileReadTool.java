@@ -49,7 +49,7 @@ public class FileReadTool<I> implements Tool<FileReadTool.Input> {
 
     @Override
     public String renderToolUseMessage(Input input) {
-        return input.filePath();
+        return tag() + " " +  input.filePath();
     }
     @Override
     public ToolResult call(Input input) {
@@ -63,7 +63,7 @@ public class FileReadTool<I> implements Tool<FileReadTool.Input> {
             return ToolResult.error("файл не найден: " + input.filePath());
         }
         if (Files.isDirectory(pathToFile)) {
-            return ToolResult.error(input.filePath() + " — это папка, а не файл");
+            return ToolResult.error( "Это папка, а не файл" + input.filePath());
         }
         List<String> lines;
         try {
@@ -103,7 +103,7 @@ public class FileReadTool<I> implements Tool<FileReadTool.Input> {
         }
         return out.toString();
     }
-    
+
     public record Input(
             @ToolParam(description = "Path to the file, relative to the project root")
             String filePath,
