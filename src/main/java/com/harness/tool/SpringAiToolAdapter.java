@@ -1,6 +1,5 @@
-package com.harness.agent;
+package com.harness.tool;
 
-import com.harness.tool.Tool;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
 import org.springframework.stereotype.Component;

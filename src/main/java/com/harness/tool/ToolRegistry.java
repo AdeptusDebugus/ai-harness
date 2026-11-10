@@ -1,8 +1,6 @@
-package com.harness.agent;
+package com.harness.tool;
 
 import com.harness.agent.event.AgentEvent;
-import com.harness.tool.Tool;
-import com.harness.tool.ToolResult;
 import org.springframework.ai.util.JsonHelper;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -15,6 +13,12 @@ import java.util.Map;
 
 @Component
 public class ToolRegistry {
+
+    /** Сколько строк результата уезжает в событие — столько увидит человек. */
+    private static final int PREVIEW_LINES = 3;
+
+    /** Длинную строку обрезаем: в терминале она всё равно переносится. */
+    private static final int PREVIEW_CHARS = 100;
 
     private final Map<String, Tool<?>> byName = new LinkedHashMap<>();
     private final ApplicationEventPublisher publisher;
@@ -45,7 +49,7 @@ public class ToolRegistry {
         publisher.publishEvent(new AgentEvent.ToolCallStarted(toolName, describeCall(tool, arguments)));
         Instant toolStartedAt = Instant.now();
         ToolResult toolResult = invoke(tool, arguments);
-        publisher.publishEvent(new AgentEvent.ToolCallFinished(toolName, toolResult.error(), toolResult.preview(120), Duration.between(toolStartedAt, Instant.now())));
+        publisher.publishEvent(new AgentEvent.ToolCallFinished(toolName, toolResult.error(), toolResult.preview(PREVIEW_LINES, PREVIEW_CHARS), Duration.between(toolStartedAt, Instant.now())));
         return  toolResult;
     }
 
@@ -64,12 +68,12 @@ public class ToolRegistry {
     }
 
 
-    private <I> String describeCall(Tool<I> tool, String argumentsJson){
+    private <I> String describeCall(Tool<I> tool, String argumentsJson) {
         try {
             String described = tool.renderToolUseMessage(json.fromJson(argumentsJson, tool.inputType()));
-            return described == null ? "" : described;
-        }catch (Exception e){
-            return "";
+            return described == null || described.isBlank() ? tool.tag() : described;
+        } catch (Exception argumentsAreBroken) {
+            return tool.tag();
         }
     }
  }
