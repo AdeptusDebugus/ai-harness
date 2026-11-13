@@ -1,8 +1,9 @@
 package com.harness.tool.impl;
 
 import com.harness.tool.Tool;
+import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
-import com.harness.tool.WorkSpaceGuard;
+import com.harness.tool.WorkspaceGuard;
 import org.jspecify.annotations.Nullable;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -21,9 +22,9 @@ import java.util.stream.Stream;
 @Component
 public class GrepTool implements Tool<GrepTool.Input> {
     private static final int MAX_MATCHES = 100;
-    private final WorkSpaceGuard workSpaceGuard;
+    private final WorkspaceGuard workSpaceGuard;
 
-    public GrepTool(WorkSpaceGuard workSpaceGuard) {
+    public GrepTool(WorkspaceGuard workSpaceGuard) {
         this.workSpaceGuard = workSpaceGuard;
     }
 
@@ -59,7 +60,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
     }
 
     @Override
-    public ToolResult call(Input input) {
+    public ToolResult call(Input input, ToolContext context) {
         if (input.pattern() == null || input.pattern().isBlank()) {
             return ToolResult.error(
                     "не указан шаблон поиска: заполни поле pattern — например \"@Test\" или \"class .*Tool\"");
@@ -76,7 +77,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
         Path root;
         try {
             root = input.path() == null ? workSpaceGuard.root() : workSpaceGuard.resolve(input.path());
-        } catch (WorkSpaceGuard.WorkSpaceViolationException e) {
+        } catch (WorkspaceGuard.WorkspaceViolationException e) {
             return ToolResult.error(e.getMessage());
         }
 
@@ -109,7 +110,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
         int shown = 0;
         for (Path file : files) {
             List<String> lines = lines(file);
-            for (int i = 0; i < lines.size(); i++) {
+            for (int i = 0; i < lines.size() && shown < MAX_MATCHES; i++) {
                 if(regex.matcher(lines.get(i)).find()) {
                     out.append("%s:%d:%s%n".formatted(workSpaceGuard.relativize(file), i + 1, lines.get(i).strip()));
                     shown++;

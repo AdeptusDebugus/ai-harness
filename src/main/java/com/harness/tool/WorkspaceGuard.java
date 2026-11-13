@@ -8,11 +8,11 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 
 @Component
-public class WorkSpaceGuard {
+public class WorkspaceGuard {
 
     private final Path root;
 
-    public WorkSpaceGuard(AgentProperties agentProperties) {
+    public WorkspaceGuard(AgentProperties agentProperties) {
         this.root = Path.of(agentProperties.workSpaceRoot()).toAbsolutePath().normalize();
     }
 
@@ -22,26 +22,26 @@ public class WorkSpaceGuard {
 
     public Path resolve(String rawPath) {
         if (rawPath == null || rawPath.isBlank()) {
-            throw  new WorkSpaceViolationException("Path is blank");
+            throw  new WorkspaceViolationException("Path is blank");
         }
         Path candidate = Path.of(rawPath);
         Path resolved = (candidate.isAbsolute() ? candidate: root.resolve(candidate)).normalize();
 
         if (!resolved.startsWith(root)) {
-            throw  new WorkSpaceViolationException(
+            throw  new WorkspaceViolationException(
                     "Путь вне рабочей папки: %s, <текущий путь: %s>".formatted(resolved, root));
         }
 
         try {
             Path realPath = resolved.toRealPath();
             if (!realPath.startsWith(root.toRealPath())) {
-                throw  new WorkSpaceViolationException(
+                throw  new WorkspaceViolationException(
                         "Path is not relative to current workspace: " + rawPath);
             }
         }
         catch (NoSuchFileException _) {}
         catch (IOException cannotVerify) {
-            throw  new WorkSpaceViolationException("Can't verify work directory: " + rawPath);
+            throw  new WorkspaceViolationException("Can't verify work directory: " + rawPath);
         }
 
         return resolved;
@@ -52,8 +52,8 @@ public class WorkSpaceGuard {
     }
 
 
-    public class WorkSpaceViolationException extends RuntimeException {
-        public WorkSpaceViolationException(String pathIsBlank) {
+    public class WorkspaceViolationException extends RuntimeException {
+        public WorkspaceViolationException(String pathIsBlank) {
             super(pathIsBlank);
         }
     }

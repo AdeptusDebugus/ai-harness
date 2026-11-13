@@ -1,8 +1,9 @@
 package com.harness.tool.impl;
 
 import com.harness.tool.Tool;
+import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
-import com.harness.tool.WorkSpaceGuard;
+import com.harness.tool.WorkspaceGuard;
 import org.jspecify.annotations.Nullable;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -20,10 +21,10 @@ import java.util.stream.Stream;
 @Component
 public class GlobTool implements Tool<GlobTool.Input> {
 
-    private final WorkSpaceGuard workSpaceGuard;
+    private final WorkspaceGuard workSpaceGuard;
     public static final int MAX_RESULTS = 100;
 
-    public GlobTool(WorkSpaceGuard workSpaceGuard) {
+    public GlobTool(WorkspaceGuard workSpaceGuard) {
         this.workSpaceGuard = workSpaceGuard;
     }
 
@@ -51,15 +52,19 @@ public class GlobTool implements Tool<GlobTool.Input> {
     }
 
     @Override
-    public ToolResult call(Input input) {
+    public ToolResult call(Input input, ToolContext context) {
         if (input.pattern() == null||input.pattern().isBlank()) {
             return ToolResult.error("Ну указан шаблон поиска");
         }
         Path root;
         try {
             root = input.path() == null ? workSpaceGuard.root() : workSpaceGuard.resolve(input.path());
-        }catch (WorkSpaceGuard.WorkSpaceViolationException e){
+        }catch (WorkspaceGuard.WorkspaceViolationException e){
             return ToolResult.error(e.getMessage());
+        }
+
+        if (!Files.isDirectory(root)) {
+            return ToolResult.error("папка не найдена: " + input.path());
         }
 
         PathMatcher matcher;

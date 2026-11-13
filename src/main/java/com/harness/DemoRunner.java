@@ -23,7 +23,11 @@ public class DemoRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        System.out.println(agent.run("В каком файле объявлен класс ToolRegistry? Назови путь и скажи что он делает?"));
-        System.out.println(agent.run("А кто слушает ToolCallFinished? Найди файл"));
-    }
+        System.out.println(agent.run("В классе TargetPractice не реализован метод packageOf. Найди файл, прочитай его и реализуй этот метод."));
+        System.out.println(agent.run("""
+                Заведи в пакете com.harness.demo новый класс SourceLocation с двумя полями:
+                packageName — имя пакета, className — имя класса без расширения.
+                Затем поменяй сам метод packageOf в классе TargetPractice так, чтобы он возвращал
+                SourceLocation вместо строки. Второй метод не заводи,
+                меняй существующий."""));    }
 }

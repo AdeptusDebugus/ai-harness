@@ -1,8 +1,9 @@
 package com.harness.tool.impl;
 
 import com.harness.tool.Tool;
+import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
-import com.harness.tool.WorkSpaceGuard;
+import com.harness.tool.WorkspaceGuard;
 import org.jspecify.annotations.Nullable;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
@@ -17,10 +18,10 @@ import java.util.List;
 public class FileReadTool<I> implements Tool<FileReadTool.Input> {
 
     private static final int MAX_LINE_LENGTH = 2000;
-    private final WorkSpaceGuard workSpaceGuard;
+    private final WorkspaceGuard workSpaceGuard;
     public static final int DEFAULT_LIMIT = 2000;
 
-    public FileReadTool(WorkSpaceGuard workSpaceGuard) {
+    public FileReadTool(WorkspaceGuard workSpaceGuard) {
         this.workSpaceGuard = workSpaceGuard;
     }
 
@@ -52,11 +53,11 @@ public class FileReadTool<I> implements Tool<FileReadTool.Input> {
         return tag() + " " +  input.filePath();
     }
     @Override
-    public ToolResult call(Input input) {
+    public ToolResult call(Input input, ToolContext context) {
         Path pathToFile;
         try {
             pathToFile = workSpaceGuard.resolve(input.filePath());
-        } catch (WorkSpaceGuard.WorkSpaceViolationException e) {
+        } catch (WorkspaceGuard.WorkspaceViolationException e) {
             return ToolResult.error(e.getMessage());
         }
         if (!Files.exists(pathToFile)) {
@@ -73,6 +74,8 @@ public class FileReadTool<I> implements Tool<FileReadTool.Input> {
         } catch (IOException e) {
             return  ToolResult.error("не удалось прочитать %s: %s".formatted(input.filePath(), e.getMessage()));
         }
+
+        context.readFileState().remember(pathToFile);
 
         if(lines.isEmpty()) {
             return ToolResult.ok("файл пустой");
