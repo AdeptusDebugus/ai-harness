@@ -13,7 +13,7 @@ public class WorkspaceGuard {
     private final Path root;
 
     public WorkspaceGuard(AgentProperties agentProperties) {
-        this.root = Path.of(agentProperties.workSpaceRoot()).toAbsolutePath().normalize();
+        this.root = Path.of(agentProperties.workspaceRoot()).toAbsolutePath().normalize();
     }
 
     public Path root() {

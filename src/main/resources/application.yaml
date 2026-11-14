@@ -17,6 +17,7 @@ harness:
   agent:
     work-space-root: .
     max-turns: 20
+    personality-enabled: false
 
 logging:
   level:
