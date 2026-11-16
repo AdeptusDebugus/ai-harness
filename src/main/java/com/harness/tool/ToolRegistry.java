@@ -1,6 +1,7 @@
 package com.harness.tool;
 
 import com.harness.agent.event.AgentEvent;
+import com.harness.permission.OrdersKeeper;
 import org.springframework.ai.util.JsonHelper;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -25,7 +26,7 @@ public class ToolRegistry {
     private final JsonHelper json = new JsonHelper();
     private final ToolContext context;
 
-    public ToolRegistry(List<Tool<?>> tools, ApplicationEventPublisher applicationEventPublisher, FileStateCache readFileState) {
+    public ToolRegistry(List<Tool<?>> tools, ApplicationEventPublisher applicationEventPublisher, ToolContext context) {
         for (Tool<?> tool : tools) {
             Tool<?> clash = byName.put(tool.name(), tool);
             if (clash != null) {
@@ -35,7 +36,7 @@ public class ToolRegistry {
             }
         }
         this.publisher = applicationEventPublisher;
-        this.context = new ToolContext(readFileState);
+        this.context = context;
     }
 
     public List<Tool<?>> tools() {

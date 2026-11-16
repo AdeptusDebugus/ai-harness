@@ -23,8 +23,6 @@ public class DemoRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        System.out.println(agent.run("""
-                На какой ветке git мы сейчас работаем и есть ли незакоммиченные изменения?
-                И что это вообще за проект? Ответь коротко."""));
+        System.out.println(agent.run("Запусти тесты проекта и скажи все ли зеленое"));
     }
 }
