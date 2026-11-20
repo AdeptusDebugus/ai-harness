@@ -1,5 +1,7 @@
 package com.harness.tool.impl;
 
+import com.harness.permission.PathInspector;
+import com.harness.permission.PermissionDecision;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
@@ -21,11 +23,11 @@ import java.util.stream.Stream;
 @Component
 public class GlobTool implements Tool<GlobTool.Input> {
 
-    private final WorkspaceGuard workSpaceGuard;
+    private final WorkspaceGuard workspaceGuard;
     public static final int MAX_RESULTS = 100;
 
     public GlobTool(WorkspaceGuard workSpaceGuard) {
-        this.workSpaceGuard = workSpaceGuard;
+        this.workspaceGuard = workSpaceGuard;
     }
 
     @Override
@@ -51,6 +53,22 @@ public class GlobTool implements Tool<GlobTool.Input> {
         return Input.class;
     }
 
+    /**
+     * Поиск читает каталог: PermissionEvaluator вызывает Tool, Tool выбирает файловую проверку чтения.
+     * В ОРИГИНАЛЕ поиск ещё и прячет запрещённые файлы: шаблоны из запретов Read передаются
+     * поиску как список исключений, и модель не видит ни имён, ни строк из таких файлов.
+     * У нас проверяется только каталог, в котором ищем.
+     */
+    @Override
+    public PermissionDecision checkPermissions(Input input, ToolContext context) {
+        return PathInspector.checkRead(workspaceGuard, searchPath(input), context.permissions());
+    }
+
+    /** Если path не задан, ищем от корня проекта. */
+    private static String searchPath(Input input) {
+        return input.path() == null ? "." : input.path();
+    }
+
     @Override
     public ToolResult call(Input input, ToolContext context) {
         if (input.pattern() == null||input.pattern().isBlank()) {
@@ -58,7 +76,7 @@ public class GlobTool implements Tool<GlobTool.Input> {
         }
         Path root;
         try {
-            root = input.path() == null ? workSpaceGuard.root() : workSpaceGuard.resolve(input.path());
+            root = input.path() == null ? workspaceGuard.root() : workspaceGuard.resolve(input.path());
         }catch (WorkspaceGuard.WorkspaceViolationException e){
             return ToolResult.error(e.getMessage());
         }
@@ -93,7 +111,7 @@ public class GlobTool implements Tool<GlobTool.Input> {
         StringBuilder out  = new StringBuilder();
         found.stream()
                 .limit(MAX_RESULTS)
-                .forEach(path -> out.append(workSpaceGuard.relativize(path)).append("\n"));
+                .forEach(path -> out.append(workspaceGuard.relativize(path)).append("\n"));
         if (found.size() > MAX_RESULTS){
             out.append("... показаны первые %d совпадений, уточни шаблон".formatted(MAX_RESULTS));
         }

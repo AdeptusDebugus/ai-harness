@@ -1,5 +1,7 @@
 package com.harness.tool.impl;
 
+import com.harness.permission.PathInspector;
+import com.harness.permission.PermissionDecision;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
@@ -15,15 +17,34 @@ import java.nio.file.Path;
 import java.util.List;
 
 @Component
-public class FileReadTool<I> implements Tool<FileReadTool.Input> {
+public class FileReadTool implements Tool<FileReadTool.Input> {
 
-    private static final int MAX_LINE_LENGTH = 2000;
-    private final WorkspaceGuard workSpaceGuard;
     public static final int DEFAULT_LIMIT = 2000;
+    private static final int MAX_LINE_LENGTH = 2000;
 
-    public FileReadTool(WorkspaceGuard workSpaceGuard) {
-        this.workSpaceGuard = workSpaceGuard;
+    private final WorkspaceGuard workspaceGuard;
+
+    public FileReadTool(WorkspaceGuard workspaceGuard) {
+        this.workspaceGuard = workspaceGuard;
     }
+
+    /** Формат {@code cat -n}: номер строки, табуляция, содержимое. */
+    private String render(List<String> lines, int from, int to) {
+        StringBuilder out = new StringBuilder();
+        for (int i = from; i <= to; i++) {
+            String line = lines.get(i - 1);
+            if (line.length() > MAX_LINE_LENGTH) {
+                line = line.substring(0, MAX_LINE_LENGTH) + "… (строка обрезана)";
+            }
+            out.append(i).append('\t').append(line).append('\n');
+        }
+        if (to < lines.size()) {
+            out.append("… показаны строки %d-%d из %d. Используй offset, чтобы прочитать дальше."
+                    .formatted(from, to, lines.size()));
+        }
+        return out.toString();
+    }
+
 
     @Override
     public String name() {
@@ -52,11 +73,15 @@ public class FileReadTool<I> implements Tool<FileReadTool.Input> {
     public String renderToolUseMessage(Input input) {
         return tag() + " " +  input.filePath();
     }
+
     @Override
     public ToolResult call(Input input, ToolContext context) {
+        if (input.filePath() == null || input.filePath().isBlank()) {
+            return ToolResult.error("не указан файл: заполни поле filePath");
+        }
         Path pathToFile;
         try {
-            pathToFile = workSpaceGuard.resolve(input.filePath());
+            pathToFile = workspaceGuard.resolve(input.filePath());
         } catch (WorkspaceGuard.WorkspaceViolationException e) {
             return ToolResult.error(e.getMessage());
         }
@@ -64,7 +89,7 @@ public class FileReadTool<I> implements Tool<FileReadTool.Input> {
             return ToolResult.error("файл не найден: " + input.filePath());
         }
         if (Files.isDirectory(pathToFile)) {
-            return ToolResult.error( "Это папка, а не файл" + input.filePath());
+            return ToolResult.error(input.filePath() + " — это папка, а не файл");
         }
         List<String> lines;
         try {
@@ -74,7 +99,6 @@ public class FileReadTool<I> implements Tool<FileReadTool.Input> {
         } catch (IOException e) {
             return  ToolResult.error("не удалось прочитать %s: %s".formatted(input.filePath(), e.getMessage()));
         }
-
         context.readFileState().remember(pathToFile);
 
         if(lines.isEmpty()) {
@@ -90,21 +114,9 @@ public class FileReadTool<I> implements Tool<FileReadTool.Input> {
         return ToolResult.ok(render(lines,from,to));
     }
 
-    /** Формат {@code cat -n}: номер строки, табуляция, содержимое. */
-    private String render(List<String> lines, int from, int to) {
-        StringBuilder out = new StringBuilder();
-        for (int i = from; i <= to; i++) {
-            String line = lines.get(i - 1);
-            if (line.length() > MAX_LINE_LENGTH) {
-                line = line.substring(0, MAX_LINE_LENGTH) + "… (строка обрезана)";
-            }
-            out.append(i).append('\t').append(line).append('\n');
-        }
-        if (to < lines.size()) {
-            out.append("… показаны строки %d-%d из %d. Используй offset, чтобы прочитать дальше."
-                    .formatted(from, to, lines.size()));
-        }
-        return out.toString();
+    @Override
+    public PermissionDecision checkPermissions(Input input, ToolContext context) {
+        return PathInspector.checkRead(workspaceGuard,input.filePath(),context.permissions());
     }
 
     public record Input(

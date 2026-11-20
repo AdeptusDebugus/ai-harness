@@ -1,5 +1,7 @@
 package com.harness.tool.impl;
 
+import com.harness.permission.PathInspector;
+import com.harness.permission.PermissionDecision;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
@@ -22,10 +24,10 @@ import java.util.stream.Stream;
 @Component
 public class GrepTool implements Tool<GrepTool.Input> {
     private static final int MAX_MATCHES = 100;
-    private final WorkspaceGuard workSpaceGuard;
+    private final WorkspaceGuard workspaceGuard;
 
     public GrepTool(WorkspaceGuard workSpaceGuard) {
-        this.workSpaceGuard = workSpaceGuard;
+        this.workspaceGuard = workSpaceGuard;
     }
 
     public enum OutputMode {
@@ -59,6 +61,22 @@ public class GrepTool implements Tool<GrepTool.Input> {
         return Input.class;
     }
 
+    /**
+     * Поиск читает каталог: PermissionEvaluator вызывает Tool, Tool выбирает файловую проверку чтения.
+     * В ОРИГИНАЛЕ поиск ещё и прячет запрещённые файлы: шаблоны из запретов Read передаются
+     * поиску как список исключений, и модель не видит ни имён, ни строк из таких файлов.
+     * У нас проверяется только каталог, в котором ищем.
+     */
+    @Override
+    public PermissionDecision checkPermissions(Input input, ToolContext context) {
+        return PathInspector.checkRead(workspaceGuard, searchPath(input), context.permissions());
+    }
+
+    /** Если path не задан, ищем от корня проекта. */
+    private static String searchPath(Input input) {
+        return input.path() == null ? "." : input.path();
+    }
+
     @Override
     public ToolResult call(Input input, ToolContext context) {
         if (input.pattern() == null || input.pattern().isBlank()) {
@@ -76,7 +94,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
 
         Path root;
         try {
-            root = input.path() == null ? workSpaceGuard.root() : workSpaceGuard.resolve(input.path());
+            root = input.path() == null ? workspaceGuard.root() : workspaceGuard.resolve(input.path());
         } catch (WorkspaceGuard.WorkspaceViolationException e) {
             return ToolResult.error(e.getMessage());
         }
@@ -112,7 +130,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
             List<String> lines = lines(file);
             for (int i = 0; i < lines.size() && shown < MAX_MATCHES; i++) {
                 if(regex.matcher(lines.get(i)).find()) {
-                    out.append("%s:%d:%s%n".formatted(workSpaceGuard.relativize(file), i + 1, lines.get(i).strip()));
+                    out.append("%s:%d:%s%n".formatted(workspaceGuard.relativize(file), i + 1, lines.get(i).strip()));
                     shown++;
                 }
                 if(shown>=MAX_MATCHES){
@@ -133,7 +151,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
                     .count();
 
             if (count > 0) {
-                rows.add("%s: %d".formatted(workSpaceGuard.relativize(file), count));
+                rows.add("%s: %d".formatted(workspaceGuard.relativize(file), count));
                 total+=count;
             }
         }
@@ -148,7 +166,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
         List<String> hits = new ArrayList<>();
         for (Path file : files) {
             if (lines(file).stream().anyMatch(line -> regex.matcher(line).find())){
-                hits.add(workSpaceGuard.relativize(file));
+                hits.add(workspaceGuard.relativize(file));
             }
             if (hits.size() >= MAX_MATCHES) {
                 break;

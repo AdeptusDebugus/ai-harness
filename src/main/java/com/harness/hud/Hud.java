@@ -3,6 +3,7 @@ package com.harness.hud;
 import com.harness.agent.Agent;
 import com.harness.agent.event.AgentEvent;
 import com.harness.context.TokenEstimator;
+import com.harness.permission.PermissionEvaluator;
 import com.harness.tool.Tool;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
@@ -12,7 +13,6 @@ import org.springframework.stereotype.Component;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import static com.harness.hud.BodyPart.*;
 import static com.harness.hud.LanguageUtils.plural;
@@ -23,46 +23,20 @@ public class Hud {
     private final MachineViewPrinter machinePrinter;
     private final Agent agent;
     private final List<Tool<?>> tools;
+    private final PermissionEvaluator permissions;
 
-    public Hud(MachineViewPrinter machinePrinter, Agent agent, List<Tool<?>> tools){
+    public Hud(MachineViewPrinter machinePrinter, Agent agent, List<Tool<?>> tools, PermissionEvaluator permissions) {
         this.machinePrinter = machinePrinter;
         this.agent = agent;
         this.tools = tools;
-    }
-
-    @EventListener
-    public void onTurnStarted(AgentEvent.TurnStarted event){
-        String userMessage = event.userMessage();
-        machinePrinter.showOrder(userMessage);
-        List<Message> promptMessages = agent.conversation().toPromptMessages();
-        machinePrinter.showContext(promptMessages, TokenEstimator.estimate(promptMessages));
-    }
-
-    @EventListener
-    public void onTurnFinished(AgentEvent.TurnFinished event){
-        machinePrinter.showTurnFinished(event.duration(), event.iteration());
+        this.permissions = permissions;
     }
 
     @EventListener(ApplicationStartedEvent.class)
-    public void onApplicationStarted(ApplicationStartedEvent event){
+    public void onApplicationStarted(ApplicationStartedEvent event) {
         machinePrinter.showBootLog(collectBootLines(event.getApplicationContext().getBeanDefinitionCount()));
     }
 
-    @EventListener
-    public void onToolStarted(AgentEvent.ToolCallStarted event){
-        machinePrinter.showToolCallStarted(
-                event.description().isBlank() ? event.toolName() : event.description());
-    }
-
-    @EventListener
-    public void onToolCallFinished(AgentEvent.ToolCallFinished event){
-        machinePrinter.showToolCallFinished(event.error(), event.preview(), event.duration());
-    }
-
-    @EventListener
-    public void onTurnLimitReached(AgentEvent.TurnLimitReached event){
-        machinePrinter.showTurnLimitReached(event.maxTurns());
-    }
     private List<BootLine> collectBootLines(int beanDefinitionCount) {
         Map<BodyPart, BootLine> lines = new EnumMap<>(BodyPart.class);
 
@@ -78,6 +52,9 @@ public class Hud {
             BodyPart part = forToolName(tool.name());
             BootLine bootLine = lines.computeIfAbsent(part, BootLine::empty);
             bootLine.components().add(tool.name());
+            if (permissions.isLocked(tool)) {
+                lines.put(part, new BootLine(part, BootStatus.LOCKED, bootLine.components()));
+            }
         }
         if (!tools.isEmpty()) {
             lines.put(BodyPart.TOOL_BUS, BootLine.of(BodyPart.TOOL_BUS, BootStatus.ONLINE,
@@ -89,18 +66,59 @@ public class Hud {
 
     }
 
+    @EventListener
+    public void onTurnStarted(AgentEvent.TurnStarted event) {
+        String userInput = event.userMessage();
+        machinePrinter.showOrder(userInput);
+        List<Message> promptMessages = agent.conversation().toPromptMessages();
+        machinePrinter.showContext(promptMessages, TokenEstimator.estimate(promptMessages));
+
+    }
+
+    @EventListener
+    public void onTurnFinished(AgentEvent.TurnFinished event) {
+        machinePrinter.showTurnFinished(event.duration(), event.iteration());
+    }
+
+    @EventListener
+    public void onToolCallStarted(AgentEvent.ToolCallStarted event) {
+        machinePrinter.showToolCallStarted(event.description());
+    }
+
+    /** PermissionGate прислал событие о вопросе. Hud показывает сообщение; ответ читает консоль. */
+    @EventListener
+    public void onPermissionRequested(AgentEvent.PermissionRequested event) {
+        machinePrinter.showPermissionRequested(event.toolName(), event.target(), event.reason());
+    }
+
+    /** PermissionGate прислал ответ: при согласии Hud показывает ARMED, при отказе — сообщение об отказе. */
+    @EventListener
+    public void onPermissionResolved(AgentEvent.PermissionResolved event) {
+        machinePrinter.showPermissionResolved(forToolName(event.toolName()), event.granted());
+    }
+
+    @EventListener
+    public void onToolCallFinished(AgentEvent.ToolCallFinished event) {
+        machinePrinter.showToolCallFinished(event.error(), event.preview(), event.duration());
+    }
+
+    @EventListener
+    public void onTurnLimitReached(AgentEvent.TurnLimitReached event) {
+        machinePrinter.showTurnLimitReached(event.maxTurns());
+    }
+
 
     //    @EventListener
-    public void onAgentSpokeEvent(AgentEvent.AgentSpoke event){
+    public void onAgentSpokeEvent(AgentEvent.AgentSpoke event) {
         String assistantMessage = event.assistantMessage();
-
-        boolean containsRussian = Pattern.compile("[А-Яа-яЁё]")
+        boolean containsRussian = java.util.regex.Pattern
+                .compile("[А-Яа-яЁё]")
                 .matcher(assistantMessage)
                 .find();
 
-        if (containsRussian){
+        if (containsRussian) {
             System.err.println("НЕ ГОВОРИ СО МНОЙ ПО РУССКИ");
-            throw  new RuntimeException(assistantMessage);
+            throw new RuntimeException(assistantMessage);
         }
     }
 }

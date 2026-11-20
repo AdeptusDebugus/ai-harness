@@ -1,6 +1,7 @@
 package com.harness.tool;
 
 import com.harness.permission.*;
+import org.jspecify.annotations.Nullable;
 import org.springframework.ai.util.json.schema.JsonSchemaGenerator;
 
 import java.util.List;
@@ -18,6 +19,9 @@ public interface Tool<I> {
     default String tag() { return "[" + name().toUpperCase(Locale.ROOT) + "]"; }
     default String inputSchema() {return JsonSchemaGenerator.generateForType(inputType());}
 
+    default @Nullable String validateInput(I input, ToolContext context) {
+        return null;
+    }
     /**
      * PermissionEvaluator вызывает этот метод перед исполнением. По умолчанию чтение разрешено, изменение — обычный ASK
      * с предложением больше не спрашивать для этого инструмента. Bash и файловые инструменты проверяют свои аргументы.
