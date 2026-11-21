@@ -72,6 +72,8 @@ public class ToolRegistry {
         // Единственное место, где аргументов может не быть вовсе: дальше каждый Tool получает их непустыми.
         if (input == null) return ToolResult.error("не указаны аргументы");
         try {
+            String invalid = tool.validateInput(input, context);
+            if (invalid != null) return ToolResult.error(invalid);
             PermissionDecision decision = permissionGate.authorize(tool, input, context);
             if(decision.behavior() != PermissionBehavior.ALLOW) {
                 return ToolResult.error("вызов запрещён: " + decision.reason());
@@ -82,8 +84,6 @@ public class ToolRegistry {
         }
     }
 
-
-
     private <I> String describeCall(Tool<I> tool, String argumentsJson) {
         try {
             String described = tool.renderToolUseMessage(json.fromJson(argumentsJson, tool.inputType()));
@@ -92,5 +92,4 @@ public class ToolRegistry {
             return tool.tag();
         }
     }
-
 }

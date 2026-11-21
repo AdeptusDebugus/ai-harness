@@ -6,24 +6,32 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Conversation {
-    private final String systemPromt;
-    private List<Message> messages = new ArrayList<>();
+    private final String systemPrompt;
+    private final List<Message> messages = new ArrayList<>();
 
-    public Conversation(String systemPromt) {
-        this.systemPromt = systemPromt;
+    public Conversation(String systemPrompt) {
+        this.systemPrompt = systemPrompt;
     }
 
-    public void addUserMessage(String userMessage){
+    public void addUserMessage(String userMessage) {
         messages.add(new UserMessage(userMessage));
     }
 
-    public void addAssistantMessage(AssistantMessage assistantMessage){
+    /**
+     * Служебная врезка — отдельной репликой, как в Claude Code. Роли «система» посреди
+     * разговора нет, поэтому говорим голосом человека, а тег отличает врезку от просьбы.
+     */
+    public void addSystemReminder(String text) {
+        messages.add(new UserMessage("<system-reminder>\n" + text + "\n</system-reminder>"));
+    }
+
+    public void addAssistantMessage(AssistantMessage assistantMessage) {
         messages.add(assistantMessage);
     }
 
-    public List<Message> toPromptMessages(){
-        ArrayList<Message> prompt = new ArrayList<Message>(messages.size() + 1);
-        prompt.add(new SystemMessage(systemPromt));
+    public List<Message> toPromptMessages() {
+        ArrayList<Message> prompt = new ArrayList<>(messages.size() + 1);
+        prompt.add(new SystemMessage(systemPrompt));
         prompt.addAll(messages);
         return prompt;
     }
